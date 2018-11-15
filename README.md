@@ -30,4 +30,4 @@ Make sure your *Google API Playstore* emulator has been launched with an attache
 * Android 8.1   API 27    x86 kernel : 3.18
 
 ### License
-Android_Emuroot is released under [GPLv2](https://github.com/android_emuroot/crashos/blob/master/LICENSE.md).
+Android_Emuroot is released under [GPLv2](https://github.com/airbus-seclab/android_emuroot/blob/master/LICENSE.md).
