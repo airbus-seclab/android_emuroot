@@ -7,7 +7,7 @@ go deeper into their investigations.
 ### Features
 Android_Emuroot has 3 modes:
 
-* `single --single-name NAME`:  to give root privileges to only 1 shell given in parameter
+* `single --magic-name NAME`:  to give root privileges to only 1 shell given in parameter
 * `adbd [--stealth]`:  to give root privileges to the entire `adbd` server; each new shell will be spawned as root
 * `setuid --path NAME`:  to install a setuid root binary on the file system
 
