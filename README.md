@@ -30,7 +30,7 @@ Make sure your *Google API Playstore* emulator has been launched with an attache
 * Android 8.1   API 27    x86 kernel : 3.18
 
 ### How To 
-Androird_Emuroot has to connect to the gdb stub of qemu (Android Emulator).
+Android_Emuroot has to connect to the gdb stub of qemu (Android Emulator).
 For that you have to launch manually your emulator.
 
 * First, you have to set the environment variables for qemu:
