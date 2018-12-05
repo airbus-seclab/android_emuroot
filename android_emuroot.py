@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import argparse 
 import logging 
 
@@ -155,7 +154,6 @@ class GDB_stub_controller(object):
         # I remove the first element before looping in response list
         response.pop(0)
         addresses = []
-        magic_addr = ""
         for m in response:
             # check if the payload starts with 0x because a response could be an error
             if m.get('payload') != None and m.get('payload')[:-2].startswith('0x'):
@@ -166,11 +164,13 @@ class GDB_stub_controller(object):
 
 
         for a in addresses:
-            response = self.gdb.write("x/6xw %#x" % (a - (self.options.offset_to_comm%16)))
+            response = self.gdb.write("x/6xw %#x" % (a - (8%16)))
             magic_cred_ptr = response[1].get('payload').split('\\t')
-            if (magic_cred_ptr[1]) == (magic_cred_ptr[2]):
+            magic_addr = ""
+	    if (magic_cred_ptr[1]) == (magic_cred_ptr[2]):
                 magic_addr = a
-        return magic_addr - self.options.offset_to_comm
+        	return magic_addr - self.options.offset_to_comm
+        return 0
 
     '''
     This function returns the cred_struct address of adbd process from a given stager process
@@ -200,7 +200,7 @@ def single_mode(options):
     logging.debug("[+] Check if %s is running " %(options.magic_name))
 
     # Check if the process is running
-    check_process_is_running(options.magic_name)
+    #check_process_is_running(options.magic_name)
 
     # Get task struct address
     gdbsc = GDB_stub_controller(options)
@@ -239,7 +239,7 @@ chmod 4755 /data/local/tmp/{0}'""".format(options.path)
     thread.start()
     time.sleep(5) # to be sure STAGER has been started
 
-    check_process_is_running("STAGER")
+    #check_process_is_running("STAGER")
     gdbsc = GDB_stub_controller(options)
     magic = gdbsc.get_process_task_struct("STAGER")
 
@@ -278,7 +278,7 @@ rm rm /data/local/tmp/probe'"""
     thread.start()
     time.sleep(5) # to be sure STAGER has been started
 
-    check_process_is_running("STAGER")
+    #check_process_is_running("STAGER")
     gdbsc = GDB_stub_controller(options)
     magic = gdbsc.get_process_task_struct("STAGER")
 
