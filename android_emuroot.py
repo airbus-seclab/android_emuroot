@@ -44,7 +44,7 @@ This function checks if a given process is running (with  adb shell 'ps' command
 def check_process_is_running(process):
     client = AdbClient(host="127.0.0.1", port=5037)
     device = client.device("emulator-5554")
-    ps = device.shell("ps")
+    ps = device.shell("ps -A")
     if process in ps:
         logging.debug("[+] OK. %s is running" %(process))
     else:
@@ -167,7 +167,7 @@ class GDB_stub_controller(object):
             response = self.gdb.write("x/6xw %#x" % (a - (8%16)))
             magic_cred_ptr = response[1].get('payload').split('\\t')
             magic_addr = ""
-	    if (magic_cred_ptr[1]) == (magic_cred_ptr[2]):
+	    if ( magic_cred_ptr[1] !=0 and (magic_cred_ptr[1]) == (magic_cred_ptr[2]) ):
                 magic_addr = a
         	return magic_addr - self.options.offset_to_comm
         return 0
