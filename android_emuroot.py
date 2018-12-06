@@ -24,19 +24,27 @@ def kernel_version():
     ver = result[0]+'.'+result[1]
     ver = float(ver)
 
+    offset_selinux = [] 
       # case kernel version is <= 3.10
     if ver <= 3.10 :
         offset_to_comm = 0x288
         offset_to_parent = 0xe0
+        offset_selinux.append(0xC0A77548)
+        offset_selinux.append(0xC0A7754C)
+        offset_selinux.append(0xC0A77550)
 
     # case kernel version is > 3.10 et <=3.18
     elif ver > 3.10 and ver <= 3.18 :
         offset_to_comm = 0x444
         offset_to_parent = 0xe0
+        offset_selinux.append(0xC0C4F288) 
+        offset_selinux.append(0xC0C4F28C)
+        offset_selinux.append(0XC0C4F280)
+        
     else :
         logging.debug("Sorry. Android kernel version %s not supported yet", ver)
         raise NotImplementedError("Sorry. Android kernel version %s not supported yet", ver)
-    return ver,offset_to_comm,offset_to_parent
+    return ver,offset_to_comm,offset_to_parent,offset_selinux
 
 '''
 This function checks if a given process is running (with  adb shell 'ps' command)
@@ -114,9 +122,11 @@ class GDB_stub_controller(object):
     '''
     def disable_selinux(self):
         logging.debug("[+] Disable SELinux")
-        self.write(0xC0A77548, 0)
-        self.write(0xC0A7754C, 0)
-        self.write(0xC0A77550, 0)
+        logging.debug("[+] Offsets are  %s - %s - %s "%( hex(self.options.offset_selinux[0]),hex(self.options.offset_selinux[0]),hex(self.options.offset_selinux[0])))
+
+        self.write(self.options.offset_selinux[0], 0)
+        self.write(self.options.offset_selinux[1], 0)
+        self.write(self.options.offset_selinux[2], 0)
 
     '''
     This function sets all capabilities of a task to 1
@@ -326,7 +336,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s',datefmt='%Y-%m-%d %H:%M:%S')
 
     # pin down android kernel version
-    options.version, options.offset_to_comm, options.offset_to_parent = kernel_version()
+    options.version, options.offset_to_comm, options.offset_to_parent , options.offset_selinux = kernel_version()
 
     # run the selected mode
     options.mode_function(options)
