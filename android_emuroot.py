@@ -11,12 +11,12 @@ import time
 
 ##################### ADB functions #############################
 '''
-This function returns the kernel version 
+This function returns the kernel version
 
 '''
 def kernel_version(): 
     client = AdbClient(host="127.0.0.1", port=5037)
-    device = client.device("emulator-5554")
+    device = client.device(options.device)
     result = device.shell("uname -r")
     result = result.encode('ascii','ignore')
     logging.debug(" kernel_version() : result is %s", result)
@@ -32,6 +32,7 @@ def kernel_version():
         offset_selinux.append(0xC0A77548)
         offset_selinux.append(0xC0A7754C)
         offset_selinux.append(0xC0A77550)
+	ps_cmd = "ps"
 
     # case kernel version is > 3.10 et <=3.18
     elif ver > 3.10 and ver <= 3.18 :
@@ -40,19 +41,20 @@ def kernel_version():
         offset_selinux.append(0xC0C4F288) 
         offset_selinux.append(0xC0C4F28C)
         offset_selinux.append(0XC0C4F280)
+	ps_cmd = "ps -A"
         
     else :
         logging.debug("Sorry. Android kernel version %s not supported yet", ver)
         raise NotImplementedError("Sorry. Android kernel version %s not supported yet", ver)
-    return ver,offset_to_comm,offset_to_parent,offset_selinux
+    return ver,offset_to_comm,offset_to_parent,offset_selinux,ps_cmd
 
 '''
 This function checks if a given process is running (with  adb shell 'ps' command)
 '''
-def check_process_is_running(process):
+def check_process_is_running(process, pscmd, device):
     client = AdbClient(host="127.0.0.1", port=5037)
-    device = client.device("emulator-5554")
-    ps = device.shell("ps -A")
+    device = client.device(device)
+    ps = device.shell(pscmd)
     if process in ps:
         logging.debug("[+] OK. %s is running" %(process))
     else:
@@ -210,7 +212,7 @@ def single_mode(options):
     logging.debug("[+] Check if %s is running " %(options.magic_name))
 
     # Check if the process is running
-    #check_process_is_running(options.magic_name)
+    check_process_is_running(options.magic_name, options.ps_cmd, options.device)
 
     # Get task struct address
     gdbsc = GDB_stub_controller(options)
@@ -249,7 +251,7 @@ chmod 4755 /data/local/tmp/{0}'""".format(options.path)
     thread.start()
     time.sleep(5) # to be sure STAGER has been started
 
-    #check_process_is_running("STAGER")
+    check_process_is_running("STAGER", options.ps_cmd, options.device)
     gdbsc = GDB_stub_controller(options)
     magic = gdbsc.get_process_task_struct("STAGER")
 
@@ -288,7 +290,7 @@ rm rm /data/local/tmp/probe'"""
     thread.start()
     time.sleep(5) # to be sure STAGER has been started
 
-    #check_process_is_running("STAGER")
+    check_process_is_running("STAGER", options.ps_cmd, options.device)
     gdbsc = GDB_stub_controller(options)
     magic = gdbsc.get_process_task_struct("STAGER")
 
@@ -311,9 +313,10 @@ if __name__ == '__main__':
     parser.add_argument("-v", "--version", action="version", version='%(prog)s version is 1.0')
     parser.add_argument("-V", "--verbose", action="count", default=1, help="increases verbosity")
     parser.add_argument("-t", "--timeout", help="set the GDB timeout value", default=60)
+    parser.add_argument("-d", "--device", help="specify the emulator name", default="emulator-5554")
 
     subparsers = parser.add_subparsers(title="modes")
-
+	
     parser_single = subparsers.add_parser("single", help="elevates privileges of a given process")
     parser_single.add_argument("--magic-name", required=True,
                                help="name of the process, that will be looked for in memory")
@@ -336,7 +339,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s',datefmt='%Y-%m-%d %H:%M:%S')
 
     # pin down android kernel version
-    options.version, options.offset_to_comm, options.offset_to_parent , options.offset_selinux = kernel_version()
+    options.version, options.offset_to_comm, options.offset_to_parent , options.offset_selinux, options.ps_cmd = kernel_version()
 
     # run the selected mode
     options.mode_function(options)
