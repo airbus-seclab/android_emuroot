@@ -32,7 +32,7 @@ def kernel_version():
         offset_selinux.append(0xC0A77548)
         offset_selinux.append(0xC0A7754C)
         offset_selinux.append(0xC0A77550)
-	ps_cmd = "ps"
+        ps_cmd = "ps"
 
     # case kernel version is > 3.10 et <=3.18
     elif ver > 3.10 and ver <= 3.18 :
@@ -41,7 +41,7 @@ def kernel_version():
         offset_selinux.append(0xC0C4F288) 
         offset_selinux.append(0xC0C4F28C)
         offset_selinux.append(0XC0C4F280)
-	ps_cmd = "ps -A"
+        ps_cmd = "ps -A"
         
     else :
         logging.debug("Sorry. Android kernel version %s not supported yet", ver)
@@ -179,9 +179,9 @@ class GDB_stub_controller(object):
             response = self.gdb.write("x/6xw %#x" % (a - (8%16)))
             magic_cred_ptr = response[1].get('payload').split('\\t')
             magic_addr = ""
-	    if ( magic_cred_ptr[1] !=0 and (magic_cred_ptr[1]) == (magic_cred_ptr[2]) ):
+            if ( magic_cred_ptr[1] !=0 and (magic_cred_ptr[1]) == (magic_cred_ptr[2]) ):
                 magic_addr = a
-        	return magic_addr - self.options.offset_to_comm
+                return magic_addr - self.options.offset_to_comm
         return 0
 
     '''
@@ -194,7 +194,7 @@ class GDB_stub_controller(object):
         while True:
             parent_struct_addr = int(self.gdb.write("x/6xw %#x" % (cur + self.options.offset_to_comm - self.options.offset_to_parent))[1].get('payload').split('\\t')[1],16)
             print parent_struct_addr
-	    parent_struct_name = self.gdb.write("x/s %#x" % (parent_struct_addr + self.options.offset_to_comm))[1].get('payload').split('\\t')[1]
+            parent_struct_name = self.gdb.write("x/s %#x" % (parent_struct_addr + self.options.offset_to_comm))[1].get('payload').split('\\t')[1]
             if (str(parent_struct_name) == r'\"adbd\"'):
                 adbd_cred_ptr = int(self.gdb.write("x/6xw %#x" % (parent_struct_addr + self.options.offset_to_comm - 4))[1].get('payload').split('\\t')[1],16)
                 break
@@ -316,7 +316,7 @@ if __name__ == '__main__':
     parser.add_argument("-d", "--device", help="specify the emulator name", default="emulator-5554")
 
     subparsers = parser.add_subparsers(title="modes")
-	
+
     parser_single = subparsers.add_parser("single", help="elevates privileges of a given process")
     parser_single.add_argument("--magic-name", required=True,
                                help="name of the process, that will be looked for in memory")
