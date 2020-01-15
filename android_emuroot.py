@@ -25,9 +25,9 @@ def kernel_version():
     client = AdbClient(host="127.0.0.1", port=5037)
     device = client.device(options.device)
     result = device.shell("uname -r")
-    result = result.encode('ascii','ignore')
+    #result = result.encode('ascii','ignore')
     logging.debug(" kernel_version() : result is %s", result)
-    result = result.split('.')
+    result = result.split(".")
     ver = result[0]+'.'+result[1]
     ver = float(ver)
 
@@ -340,6 +340,8 @@ if __name__ == '__main__':
 
     # parse the arguments
     options = parser.parse_args()
+    if not hasattr(options, "mode_function"):
+        parser.error("Too few arguments")
 
     # set logging params
     loglevel = 70 - (10*options.verbose) if options.verbose > 0 else 0
