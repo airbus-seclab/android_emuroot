@@ -14,7 +14,7 @@ Android_Emuroot has 3 modes:
  
 ### Dependencies
 
-* python 
+* python or python3
 * python modules:
 	* pygdbmi (Parse gdb machine interface output with Python)
 	* pure-python-adb (Pure python implementation of the adb client)
