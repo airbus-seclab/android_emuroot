@@ -344,8 +344,8 @@ if __name__ == '__main__':
         parser.error("Too few arguments")
 
     # set logging params
-    #loglevel = 70 - (10*options.verbose) if options.verbose > 0 else 0
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s',datefmt='%Y-%m-%d %H:%M:%S')
+    loglevel = 70 - (10*options.verbose) if options.verbose > 0 else 0
+    logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s',datefmt='%Y-%m-%d %H:%M:%S')
 
     # pin down android kernel version
     options.version, options.offset_to_comm, options.offset_to_parent , options.offset_selinux, options.ps_cmd = kernel_version()
