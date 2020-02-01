@@ -59,13 +59,13 @@ PATH_TO_ANDROID_SDK/emulator/qemu/qemu-linux-x86_64/qemu-system-i386 \\
 
 ```
 * For example if you want to run Android_Emuroot in single mode to patch a given process, you have to
-launch your emulator as explained above and adb shell to it:
+launch your emulator as explained above, adb shell to it, and then:
 
 ```
 >ln -s /system/bin/sh MAGICNAME 
 >./MAGICNAME 
 ```
-* Android_EmuRoot now be launched to path MAGICNAME process:
+* Android_Emuroot now be launched to path MAGICNAME process:
 
 ```
 > android_emuroot.py -t 180 -VVVVV single --magic-name MAGICNAME
