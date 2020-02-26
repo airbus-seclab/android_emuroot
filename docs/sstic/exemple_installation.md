@@ -26,6 +26,7 @@ Les outils pour la création et l'exécuion d'une image android (les binaires an
 
 ## Installation des bibliothèques requises
 `pip3 install pygdbmi`
+
 `pip3 install pure-python-adb`
 
 ## Téléchargement de l'outil
@@ -33,6 +34,7 @@ git clone https://github.com/airbus-seclab/android_emuroot.git
 
 ## Utiliser par exemple android_emuroot ainsi
 `cd android_emuroot/`
+
 `python3 android_emuroot.py -t 180 -VVVVV adbd`
 
 # Terminal sur l'émulateur
