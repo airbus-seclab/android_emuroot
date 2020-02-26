@@ -41,5 +41,5 @@ git clone https://github.com/airbus-seclab/android_emuroot.git
 
 `adb shell`
 - [sans emuroot] `generic_x86:/ $`
-- [après emuroot adbd] `generic_x86:/ #` \o/
+- [après emuroot adbd] `generic_x86:/ #`
 
