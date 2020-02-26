@@ -20,6 +20,7 @@ Les outils pour la création et l'exécution d'une image android (les binaires a
 
 ## Démarrage de l'émulateur (N.B.: l'option qemu -s est primordiale pour utiliser android-emuroot)
 `LD_LIBRARY_PATH=/opt/android-sdk-linux/emulator/lib64/qt/lib:/opt/android-sdk-linux/emulator/lib64/libstdc++:/opt/android-sdk-linux/emulator/lib64/gles_angle11:/opt/android-sdk-linux/emulator/lib64/gles_angle9:/opt/android-sdk-linux/emulator/lib64/gles_angle:/opt/android-sdk-linux/emulator/lib64/gles_swiftshader:/opt/android-sdk-linux/emulator/lib64::/opt/android-sdk-linux/tools/lib64/qt/lib:/opt/android-sdk-linux/tools/lib6`
+
 `/opt/android-sdk-linux/emulator/qemu/linux-x86_64/qemu-system-i386 -avd sstic-avd  -verbose -no-snapshot -qemu -s`
 
 # Installation d'android-emuroot
