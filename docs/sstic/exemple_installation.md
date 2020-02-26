@@ -1,7 +1,7 @@
 # Préparation d'un émulateur
 
 ## Télécharger le sdkmanager
-Les outils pour la création et l'exécuion d'une image android (les binaires android et emulator) peuvent être téléchargés https://developer.android.com/studio/index.html#downloads (ex: sdk-tools-linux-4333796.zip). 
+Les outils pour la création et l'exécution d'une image android (les binaires android et emulator) peuvent être téléchargés https://developer.android.com/studio/index.html#downloads (ex: sdk-tools-linux-4333796.zip). 
 
 
 ## Téléchargement d'une image d'émulateurs supportés par android-emuroot (Android 8.1 API 27 x86 par exemple)
