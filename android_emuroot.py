@@ -22,8 +22,11 @@ This function returns the kernel version
 
 '''
 def kernel_version(): 
-    client = AdbClient(host="127.0.0.1", port=5037)
-    device = client.device(options.device)
+    client = AdbClient(host="127.0.0.1", port=5037) 
+    device = client.device(options.device)       
+    if device == None:
+        logging.info("Device name %s invalid. Check \"adb devices\" to get valid ones", options.device)
+        raise Exception("Device name invalid. Check \"adb devices\" to get valid ones")
     result = device.shell("uname -r")
     #result = result.encode('ascii','ignore')
     logging.info(" kernel_version() : result is %s", result)
@@ -51,16 +54,19 @@ def kernel_version():
         ps_cmd = "ps -A"
         
     else :
-        logging.info("Sorry. Android kernel version %s not supported yet", ver)
-        raise NotImplementedError("Sorry. Android kernel version %s not supported yet", ver)
+        logging.info("Sorry. Android kernel version %s not supported yet", str(ver))
+        raise NotImplementedError("Sorry. Android kernel version not supported yet")
     return ver,offset_to_comm,offset_to_parent,offset_selinux,ps_cmd
 
 '''
 This function checks if a given process is running (with  adb shell 'ps' command)
 '''
-def check_process_is_running(process, pscmd, device):
+def check_process_is_running(process, pscmd, devicename):
     client = AdbClient(host="127.0.0.1", port=5037)
-    device = client.device(device)
+    device = client.device(devicename)
+    if device == None:
+        logging.info("Device name %s invalid. Check \"adb devices\" to get valid ones", device)
+        raise Exception("Device name invalid. Check \"adb devices\" to get valid ones")
     ps = device.shell(pscmd)
     if process in ps:
         logging.info("[+] OK. %s is running" %(process))
@@ -73,14 +79,14 @@ def check_process_is_running(process, pscmd, device):
 This method is in charge to launch load.sh in background 
 The script copy /system/bin/sh to /data/local/tmp and attempt to change its owner to root  in a loop
 '''
-def adb_stager_process(load):
+def adb_stager_process(load, devicename):
     '''
     Adb connexion 
     TODO specify the device id
     '''
     logging.info("[+] Launch the stager process")
     client = AdbClient(host="127.0.0.1", port=5037)
-    device = client.device("emulator-5554")
+    device = client.device(devicename)
 
     device.shell("echo "+load+" > /data/local/tmp/load.sh")
     device.shell("chmod +x /data/local/tmp/load.sh")
@@ -93,10 +99,10 @@ def adb_stager_process(load):
 '''
 This function cleans the file system by removing the stager binaries created in adb_stager_process
 '''
-def stager_clean():
-    logging.info("[+] Launch the stager process")
+def stager_clean(devicename):
+    logging.info("[+] Clean the stager process")
     client = AdbClient(host="127.0.0.1", port=5037)
-    device = client.device("emulator-5554")
+    device = client.device(devicename)
 
     device.shell("rm /data/local/tmp/load.sh /data/local/tmp/STAGER")
 
@@ -111,12 +117,23 @@ class GDB_stub_controller(object):
         logging.info(" [+] GDB additional timeout value is %d" % int(options.timeout) )
         self.gdb = GdbController(time_to_check_for_additional_output_sec=int(options.timeout))
         response = self.gdb.write("target remote :1234")
+        isrunning = 0
+        for f in response:
+            if ("payload" in f) and (f["payload"] !=None) and ("Remote debugging" in f["payload"]):	                
+                logging.info(" [+] GDB server reached. Continue")
+                isrunning = 1
+                break
+        if isrunning == 0:
+            logging.info("GDB server not reachable. Did you start it?")
+            self.stop()
+            raise Exception("GDB server not reachable. Did you start it?")
+
     def stop(self):
         logging.info(" [+] Detach and stop GDB controller")
         self.gdb.exit()
 
     def write(self, addr, val):
-        logging.info(" [+] gdb.write adr: %#x value : %#x"%(addr,val))
+        logging.info(" [+] gdb.write addr: %#x value : %#x"%(addr,val))
         self.gdb.write("set *(unsigned int*) (%#x) = %#x" % (addr, val))
 
     def read(self, addr):
@@ -164,7 +181,7 @@ class GDB_stub_controller(object):
     '''
     def get_process_task_struct(self, process):
         logging.info(" [+] Get address aligned whose process name is: [%s]" % process)
-        logging.info( "[+] GDB timeout is %d" % int(options.timeout) )
+        logging.info(" [+] This step can take a while (GDB timeout: %dsec). Please wait..." % int(options.timeout) )
         response = self.gdb.write("find 0xc0000000, +0x40000000, \"%s\"" % process,
                                   raise_error_on_timeout=True, read_response=True,
                                   timeout_sec=int(options.timeout))
@@ -254,7 +271,7 @@ done
 mount -o suid,remount /data
 chmod 4755 /data/local/tmp/{0}'""".format(options.path)
 
-    thread = threading.Thread(name='adb_stager',target=adb_stager_process, args=(script,))
+    thread = threading.Thread(name='adb_stager',target=adb_stager_process, args=(script,options.device))
     thread.start()
     time.sleep(5) # to be sure STAGER has been started
 
@@ -272,7 +289,7 @@ chmod 4755 /data/local/tmp/{0}'""".format(options.path)
     gdbsc.set_full_capabilities(magic_cred_ptr)
 
     gdbsc.stop()
-    stager_clean()
+    stager_clean(options.device)
 
 
 '''
@@ -293,7 +310,7 @@ done
 sleep 5
 rm rm /data/local/tmp/probe'"""
 
-    thread = threading.Thread(name='adb_stager',target=adb_stager_process, args=(script,))
+    thread = threading.Thread(name='adb_stager',target=adb_stager_process, args=(script,options.device))
     thread.start()
     time.sleep(5) # to be sure STAGER has been started
 
@@ -312,15 +329,15 @@ rm rm /data/local/tmp/probe'"""
     gdbsc.set_full_capabilities(magic_cred_ptr)
 
     gdbsc.stop()
-    stager_clean()
+    stager_clean(options.device)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Usage:")
 
     parser.add_argument("-v", "--version", action="version", version='%(prog)s version is 1.0')
-    parser.add_argument("-V", "--verbose", action="count", default=1, help="increases verbosity")
-    parser.add_argument("-t", "--timeout", help="set the GDB timeout value", default=60)
-    parser.add_argument("-d", "--device", help="specify the emulator name", default="emulator-5554")
+    parser.add_argument("-V", "--verbose", action="count", default=0, help="increase verbosity")
+    parser.add_argument("-t", "--timeout", help="set the GDB timeout value (in seconds)", default=60)
+    parser.add_argument("-d", "--device", help="specify the device name (as printed by \"adb device\", example: emulator-5554)", default="emulator-5554")
 
     subparsers = parser.add_subparsers(title="modes")
 
@@ -344,7 +361,7 @@ if __name__ == '__main__':
         parser.error("Too few arguments")
 
     # set logging params
-    loglevel = 70 - (10*options.verbose) if options.verbose > 0 else 0
+    loglevel = 50 - (10*options.verbose) if options.verbose > 0 else logging.INFO
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s',datefmt='%Y-%m-%d %H:%M:%S')
 
     # pin down android kernel version
