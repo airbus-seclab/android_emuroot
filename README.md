@@ -2,24 +2,25 @@
 
 ## Introduction
 
-Android_Emuroot is a Python script that allows to **grant root privileges** to
-*Google API Playstore* emulator shells on the fly to help Reverse Engineers to
+Android_Emuroot is a Python script that allows **granting root privileges** on
+the fly to shells running on Android virtual machines that use google-provided
+emulator images called *Google API Playstore*, to help reverse engineers to
 go deeper into their investigations.
 
-Android_Emuroot technique is based on the ability of *Google API Playstore*
-emulator to be launched with the qemu gdb stub option enabled and the control
-of process metadata stored in memory in kernel task structures. The main idea
+Android_Emuroot requires the *Google API Playstore* emulator to be launched
+with the qemu gdb stub option enabled, and uses it to alter process metadata
+stored in memory in kernel task structures. The main idea
 is to start from a shell with the lowest privileges, then to find its
 associated credential structure in kernel memory to replace it by another
 structure having the highest privileges.
 
 Implementing this memory modification on a *Google API Playstore* emulator presents the
-two following advantages:
+following two advantages:
 * to work with an environment very similar to a physical device (with production 
-  built number, etc.) and with all Google Play and Google services packages 
-  already installed; It is often required by the targeted applications to work fine;
+  build number, etc.) and with all Google Play and Google services packages 
+  already installed. This is often required by the targeted applications
 * to have a very easily modifiable memory since a GDB debugger can be attached to 
-  the device to fully control the kernel memory.
+  the device to fully control the kernel memory
 
 ## Requirements
 
@@ -74,35 +75,36 @@ like this: `avdmanager create avd -n my_avd_name -k system-images;android-27;goo
 To work well, Android_Emuroot communicates with:
 
 * the ADB server of to get information from the emulated device and spawn shells inside
-* the GDB server of QEMU to get information about the memory layout of the emulated device and patch values in memory.
+* the GDB server of QEMU to get information about the memory layout of the emulated device and patch values in memory
 
 The scheme below shows the interactions between all the elements:
 
 ![Android_Emuroot working environment](docs/android_emuroot_working_env.png)
 
+
 #### Launching the ADB server
 
 The Android Debug Bridge
-([ADB](https://developer.android.com/studio/command-line/adb)) is a another
+([ADB](https://developer.android.com/studio/command-line/adb)) is a
 command line tool of the Android Studio toolchain that lets communicate with
 an Android device. The ADB server is the component that manages communication
 between Android_Emuroot and the ADB daemon launched on the device. By default,
-ADB servers listen on *127.0.0.1* port *5037*.  `adb start-server` lets you
+ADB servers listen on *127.0.0.1* port *5037*. `adb start-server` lets you
 ensure that there is a server running.
 
-**Be sure your ADB server is running.**
+*Be sure your ADB server is running.*
 
 
 #### Making the GDB server available
 
-The other key point to use Android_Emuroot is to  attach a GDB server to your
+The other requirement to use Android_Emuroot is to attach a GDB server to your
 AVD when launching it.
 [emulator](https://developer.android.com/studio/run/emulator-commandline),
 another command line tool of the Android Studio toolchain, allows to launch
 AVDs with a lot of options. Among them: `-qemu -s` (shorthang for `-qemu -gdb tcp::1234`) 
  which opens a GDB server on TCP port 1234. 
 
-**Use it to get a GDB server available.**
+*Use it to get a GDB server available.*
 
 Here is an simple example of [emulator](https://developer.android.com/studio/run/emulator-commandline)'s usage:
 
@@ -112,7 +114,7 @@ This way, a GDB server will be attached to the AVD `my_avd_name` and
 Android_Emuroot will be able to spawn its GDB client and perform the memory
 patches.
 
-**With all these requirements, you are ready to use Android_Emuroot.**
+*Once both ADB server and GDB server are operational, you are ready to use Android_Emuroot.*
 
 ## Usage
 
