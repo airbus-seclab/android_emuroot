@@ -66,7 +66,7 @@ example like this: ```sdkmanager --install "system-images;android-27;google_apis
 Then, create an Android Virtual Device (AVD) accordingly, via the AVD manager GUI or
 with
 [avdmanager](https://developer.android.com/studio/command-line/avdmanager)
-like this: `/avdmanager create avd -n my_avd_name -k system-images;android-27;google_apis_playstore;x86"`.
+like this: `avdmanager create avd -n my_avd_name -k system-images;android-27;google_apis_playstore;x86"`.
 
 
 ### Working environment
@@ -76,7 +76,7 @@ To work well, Android_Emuroot communicates with:
 * the ADB server of to get information from the emulated device and spawn shells inside
 * the GDB server of QEMU to get information about the memory layout of the emulated device and patch values in memory.
 
-The scheme below shows the interaction between all the elements:
+The scheme below shows the interactions between all the elements:
 
 ![Android_Emuroot working environment](docs/android_emuroot_working_env.png)
 
