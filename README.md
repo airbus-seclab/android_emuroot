@@ -72,7 +72,7 @@ like this: `avdmanager create avd -n my_avd_name -k system-images;android-27;goo
 
 ### Working environment
 
-To work well, Android_Emuroot communicates with:
+Android_Emuroot needs to interact with both:
 
 * the ADB server of to get information from the emulated device and spawn shells inside
 * the GDB server of QEMU to get information about the memory layout of the emulated device and patch values in memory
@@ -95,7 +95,7 @@ ensure that there is a server running.
 *Be sure your ADB server is running.*
 
 
-#### Making the GDB server available
+#### Running the emulator with a GDB server
 
 The other requirement to use Android_Emuroot is to attach a GDB server to your
 AVD when launching it.
@@ -104,7 +104,7 @@ another command line tool of the Android Studio toolchain, allows to launch
 AVDs with a lot of options. Among them: `-qemu -s` (shorthang for `-qemu -gdb tcp::1234`) 
  which opens a GDB server on TCP port 1234. 
 
-*Use it to get a GDB server available.*
+*Use this option to get a GDB server available.*
 
 Here is an simple example of [emulator](https://developer.android.com/studio/run/emulator-commandline)'s usage:
 
