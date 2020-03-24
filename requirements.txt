@@ -1,2 +1,2 @@
 pure-python-adb
-pygdbmi
+pygdbmi-0.9.0.3
