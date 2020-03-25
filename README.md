@@ -127,7 +127,7 @@ Android_Emuroot has 3 modes:
 * `setuid --path NAME`:  to install a setuid root binary on the file system
 
 
-TODO
+More details on the usage and the tool internals: [Detailed Usage](Howto.md)
 
 
 ## About

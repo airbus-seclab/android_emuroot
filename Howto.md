@@ -1,8 +1,8 @@
 ---
-Detailed how to 
+Detailed usage
 ---
 
-To have an idea about the different options that android_emuroot accepts, you can run it using --help :
+To have an idea about the different options that Android_Emuroot accepts, you can run it using the option `--help`:
 
 ```
 python3 android_emuroot.py --help 
@@ -27,21 +27,22 @@ modes:
     setuid              creates a setuid shell launcher
 ```
 
-android_emuroot offers three ways (modes) to get an elevated access to Android emulator. 
-The idea is that you can choose one of the three mode depending on your RE needs and constraints. 
+Android_Emuroot offers three ways (modes) to get an elevated access to Android emulator. 
+The idea is that you can choose one of the three modes depending on your RE needs and constraints. 
 
 # Single mode
+
 The single mode consists in launching a shell (/bin/sh) process under a different specific name (unique name). 
-This latter is searched into the emulator memory using gdb. As stated in the README, his new given process name 
+This latter is searched into the emulator memory using GDB. As stated in the README, his new given process name 
 is used to look for the task_struct structure in the emulator memory. This structure holds the process metadata 
 that will be modified to elevate it.
 
-The figure (task_struct) shows the fields that are modified by android_emuroot. 
+The figure (task_struct) shows the fields that are modified by Android_Emuroot. 
 
 ![Task_struct](./imgs/Emuroot-task_struct.png)
 
 
-The single mode requires a magicname that corresponds to the name you gave to /bin/sh symbolique link.
+The single mode requires a magicname as parameter. That corresponds to the name you gave to the shell you want to root.
 ```
 usage: android_emuroot.py single [-h] --magic-name MAGIC_NAME
 
@@ -52,7 +53,7 @@ optional arguments:
 
 ```
 
-Hence, you have to create a symbolique link to /bin/sh in your emulator:
+Hence, you can for example create a symbolic link to /bin/sh in your emulator:
 ```
 Android/Sdk/platform-tools$./adb devices 
 List of devices attached
@@ -77,7 +78,7 @@ shell         4347  4312    5752   2656 sigsuspend   a79ccac4 S MAGICNAME
 shell         4348  4347    7320   3260 0            b143eac4 R ps
 
 ```
-Once, there is a process with the your given string, you can launch android_emuroot:
+Once, there is a process with the your given string, you can launch Android_Emuroot:
 
 ```
 python3 android_emuroot.py -t 180 -VVVVV -d emulator-5554 single --magic-name MAGICNAME
@@ -107,13 +108,13 @@ generic_x86:/data/local/tmp $ id
 uid=0(root) gid=0(root) groups=0(root),1004(input),1007(log),1011(adb),1015(sdcard_rw),1028(sdcard_r),3001(net_bt_admin),3002(net_bt),3003(inet),3006(net_bw_stats),3009(readproc),3011(uhid) context=u:r:shell:s0
 
 ```
-Single mode is not a persistent technique, so each time you exit the emulator you have to execute again android_emuroot. 
-As you can guess, launching multiple times android_emuroot may not work because of the incoherence of the emulator memory. To resolve that, simply reboot the emulator in a cold boot mode.
+Single mode is not a persistent technique, so each time you exit the shell you rooted, you have to execute again Android_Emuroot. 
+As you can guess, launching multiple times Android_Emuroot may not work because of the incoherence of the emulator memory. To resolve that, simply reboot the emulator in a cold boot mode.
 
 
 # Adbd mode 
-For adbd mode, instead of patching a given process it's adbd process task_struct that is modified.
-For that, it is not required to specify a process name as an argument to android_emuroot. Even though, the same technique as for single mode is used here. All the following steps are automated by the script:
+For adbd mode, instead of patching a given process the adbd process task_struct itself that is modified.
+For that, it is not required to specify a process name as an argument to Android_Emuroot. Even though, the same technique as for single mode is used here. All the following steps are automated by the script:
 * Creating a symbolic link to /bin/sh with a MAGICNAME
 * Launching the shell 
 * Searching MAGICNAME task_struct in emulator kernel memory
@@ -135,7 +136,7 @@ optional arguments:
 
 ```
 
-You can execute android_emuroot as below without opening a shell on the emulator. If so you must then exit your shell and connect again once the script ends its operations.
+You can execute Android_Emuroot as below without opening a shell on the emulator. Once the script ends its operations, you can get a shell with `adb shell` which will have root privileges.
 
 ```
 python3 android_emuroot.py -t 180 -VVVVV -d emulator-5554 adbd 
@@ -169,5 +170,5 @@ uid=0(root) gid=0(root) groups=0(root),1004(input),1007(log),1011(adb),1015(sdca
 # Setuid mode
 
  
- 
+ TODO
 
