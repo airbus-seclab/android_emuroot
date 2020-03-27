@@ -269,7 +269,7 @@ while :; do
   if chown root:root /data/local/tmp/{0}; then break; fi
 done
 mount -o suid,remount /data
-chmod 4755 /data/local/tmp/{0}'""".format(options.path)
+chmod 4755 /data/local/tmp/{0}'""".format(options.filename)
 
     thread = threading.Thread(name='adb_stager',target=adb_stager_process, args=(script,options.device))
     thread.start()
@@ -352,7 +352,7 @@ if __name__ == '__main__':
     parser_adbd.set_defaults(mode_function = adbd_mode)
 
     parser_setuid = subparsers.add_parser("setuid", help="creates a setuid shell launcher")
-    parser_setuid.add_argument("--path", required=True, help="path to setuid shell to create")
+    parser_setuid.add_argument("--filename", required=True, help="filename of the setuid shell to create in /data/local/tmp")
     parser_setuid.set_defaults(mode_function = setuid_mode)
 
     # parse the arguments

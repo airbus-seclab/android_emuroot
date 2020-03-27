@@ -168,7 +168,53 @@ uid=0(root) gid=0(root) groups=0(root),1004(input),1007(log),1011(adb),1015(sdca
 
 
 # Setuid mode
+Disclaimer : this mode still to be improved and is not completely functional. 
+This mode has been added to offer a persistent way to have a root access on Android emulator.
+It consists in creating a shell (/system/bin/sh) with the SUID bit. So, the tool requires 
+the filename to be given for the new shell. This file is created by default in `/data/local/tmp` folder. 
 
- 
- TODO
+```
+python3 android_emuroot.py -t 180 -VVVVV -d emulator-5554 setuid  --help
+usage: android_emuroot.py setuid [-h] --filename FILENAME
+
+optional arguments:
+  -h, --help           show this help message and exit
+  --filename FILENAME  filename of the setuid shell to create in
+                       /data/local/tmp
+```
+Android_emuroot will create a `STAGER` process and elevates its privileges. The `STAGER` process will then drop a copy of `/system/bin/sh` in `/data/local/tmp` folder with the SUID bit.
+However, `/data` partition is by default mounted with `nosuid` option, so it is remounted then by the `STAGER` process with `suid` option.Finally, SELinux is disabled .
+
+```
+ python3 android_emuroot.py -t 180 -VVVVV -d emulator-5554 setuid  --filename new-sh
+2020-03-27 10:19:15 INFO:  kernel_version() : result is 3.18.91+
+
+2020-03-27 10:19:15 INFO: [+] Rooting with Android Emuroot via a setuid binary...
+2020-03-27 10:19:15 INFO: [+] Launch the stager process
+2020-03-27 10:19:20 INFO: [+] OK. STAGER is running
+2020-03-27 10:19:20 INFO:  [+] Start the GDB controller and attach it to the remote target
+2020-03-27 10:19:20 INFO:  [+] GDB additional timeout value is 180
+2020-03-27 10:19:21 INFO:  [+] GDB server reached. Continue
+2020-03-27 10:19:21 INFO:  [+] Get address aligned whose process name is: [STAGER]
+2020-03-27 10:19:21 INFO:  [+] This step can take a while (GDB timeout: 180sec). Please wait...
+2020-03-27 10:22:23 INFO: [+] Search adbd task struct in the process hierarchy
+3221608768
+...
+2020-03-27 10:22:50 INFO: [+] Clean the stager process
+
+```
+
+You can check then the content of `/data/local/tmp` for the created file (new-sh in the example).
+```
+
+generic_x86:/data/local/tmp $ ls -ali 
+total 25804
+65538 drwxrwx--x 2 shell shell     4096 2020-03-27 10:22 .
+65537 drwxr-x--x 3 root  root      4096 2020-03-23 18:23 ..
+65539 lrwxrwxrwx 1 shell shell       14 2020-03-24 14:17 MAGICNAME -> /system/bin/sh
+65540 -rwxrwxrwx 1 shell shell 26110756 2020-03-26 11:27 frida-server-12.8.18-android-x86
+65543 -rwsr-xr-x 1 root  root    301964 2020-03-27 10:19 new-sh
+
+```
+Unfortunately, there are still some errors when attempting to execute privileged commands. 
 
