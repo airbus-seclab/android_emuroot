@@ -40,7 +40,9 @@ GDB facilities from the two following Python's modules:
 * [pygdbmi](https://pypi.org/project/pygdbmi) (Parse GDB machine interface output with Python)
 * [pure-python-adb](https://pypi.org/project/pure-python-adb) (Pure Python implementation of the ADB client)
 
-**Be sure you have these modules or install them via pip:** `pip install -r requirements.txt`.
+**Be sure you have these modules or install them via pip:** `pip3 install -r requirements.txt`.
+
+N.B.: Android_Emuroot supports Python 2 and Python 3.
 
 ### Supported *Google API Playstore* emulators
 
