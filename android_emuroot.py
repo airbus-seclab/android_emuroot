@@ -218,7 +218,7 @@ class GDB_stub_controller(object):
         cur = stager_addr
         while True:
             parent_struct_addr = int(self.gdb.write("x/6xw %#x" % (cur + self.options.offset_to_comm - self.options.offset_to_parent))[1].get('payload').split('\\t')[1],16)
-            print(parent_struct_addr)
+            print(hex(parent_struct_addr))
             parent_struct_name = self.gdb.write("x/s %#x" % (parent_struct_addr + self.options.offset_to_comm))[1].get('payload').split('\\t')[1]
             if (str(parent_struct_name) == r'\"adbd\"'):
                 adbd_cred_ptr = int(self.gdb.write("x/6xw %#x" % (parent_struct_addr + self.options.offset_to_comm - 4))[1].get('payload').split('\\t')[1],16)
