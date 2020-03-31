@@ -114,9 +114,11 @@ def stager_clean(devicename):
 class GDB_stub_controller(object):
     def __init__(self, options):
         self.options = options
+        self.internal_timeout = 1
+        self.verb = True if options.verbose else False
         logging.info(" [+] Start the GDB controller and attach it to the remote target")
         logging.info(" [+] GDB additional timeout value is %d" % int(options.timeout) )
-        self.gdb = GdbController(time_to_check_for_additional_output_sec=int(options.timeout))
+        self.gdb = GdbController(time_to_check_for_additional_output_sec=int(options.timeout), verbose=self.verb)
         response = self.gdb.write("target remote :1234")
         isrunning = 0
         for f in response:
@@ -133,16 +135,35 @@ class GDB_stub_controller(object):
         logging.info(" [+] Detach and stop GDB controller")
         self.gdb.exit()
 
-    def write(self, addr, val):
+    def write_mem(self, addr, val):
         logging.info(" [+] gdb.write addr: %#x value : %#x"%(addr,val))
-        self.gdb.write("set *(unsigned int*) (%#x) = %#x" % (addr, val))
+        self.gdb.write("set *(unsigned int*) (%#x) = %#x" % (addr, val), timeout_sec=self.internal_timeout)
 
-    def read(self, addr):
-        r = self.gdb.write("x/6xw %#x" % addr)[1].get('payload').split('\\t')[1]
-        logging.info(" [+] Gdb.read %s "%(r))
+    def read_mem(self, addr):
+        r = self.gdb.write("x/xw %#x" % addr, timeout_sec=self.internal_timeout)[1].get('payload').split('\\t')[1].replace("\\n","")
+        logging.info(" [+] gdb.read addr [0x%x]: %s "% (addr, r))
         r = int(r,16)
         return r 
-        #int(self.gdb.write("x/6xw %#x" % addr)[1].get('payload').split('\\t')[1],16)
+
+    def read_str(self, addr):
+        r = self.gdb.write("x/s %#x" % addr, timeout_sec=self.internal_timeout)[1].get('payload').split('\\t')[1]
+        logging.info(" [+] gdb.read str [0x%x]: %s " % (addr, r))
+        return r
+
+
+    def find(self, name):
+        response = self.gdb.write("find 0xc0000000, +0x40000000, \"%s\"" % name,
+                                  raise_error_on_timeout=True, read_response=True,
+                                  timeout_sec=int(options.timeout))
+        response.pop(0) # response[0] contains the gdb command line
+        addresses = []
+        # parse gdb response
+        for m in response:
+            if m.get('payload') != None and m.get('payload')[:-2].startswith('0x'):
+                val = int(m.get('payload')[:-2],16)
+                addresses.append(val)
+        # return a list of addresses found.
+        return addresses
 
     '''
     This function sets SELinux enforcement to permissive
@@ -151,9 +172,9 @@ class GDB_stub_controller(object):
         logging.info("[+] Disable SELinux")
         logging.info("[+] Offsets are  %s - %s - %s "%( hex(self.options.offset_selinux[0]),hex(self.options.offset_selinux[0]),hex(self.options.offset_selinux[0])))
 
-        self.write(self.options.offset_selinux[0], 0)
-        self.write(self.options.offset_selinux[1], 0)
-        self.write(self.options.offset_selinux[2], 0)
+        self.write_mem(self.options.offset_selinux[0], 0)
+        self.write_mem(self.options.offset_selinux[1], 0)
+        self.write_mem(self.options.offset_selinux[2], 0)
 
     '''
     This function sets all capabilities of a task to 1
@@ -161,7 +182,7 @@ class GDB_stub_controller(object):
     def set_full_capabilities(self,cred_addr):
         logging.info("[+] Set full capabilities")
         for ofs in [0x30, 0x34, 0x38, 0x3c, 0x40, 0x44]:
-            self.write(cred_addr+ofs, 0xffffffff)
+            self.write_mem(cred_addr+ofs, 0xffffffff)
 
     '''
     This function sets all Linux IDs of a task to 0 (root user)
@@ -170,10 +191,10 @@ class GDB_stub_controller(object):
     def set_root_ids(self, cred_addr, effective=True):
         logging.info("[+] Set root IDs")
         for ofs in [0x04, 0x08, 0x0c, 0x10, 0x1c, 0x20]: # uid, gid, suid,sgid, fsuid, fsgid
-            self.write(cred_addr+ofs, 0x00000000)
+            self.write_mem(cred_addr+ofs, 0x00000000)
         if effective:
-            self.write(cred_addr+0x14, 0x00000000) # euid
-            self.write(cred_addr+0x18, 0x00000000) # egid
+            self.write_mem(cred_addr+0x14, 0x00000000) # euid
+            self.write_mem(cred_addr+0x18, 0x00000000) # egid
         else:
             logging.info("[+] Note: effective ID have not been changed")
 
@@ -183,31 +204,21 @@ class GDB_stub_controller(object):
     def get_process_task_struct(self, process):
         logging.info(" [+] Get address aligned whose process name is: [%s]" % process)
         logging.info(" [+] This step can take a while (GDB timeout: %dsec). Please wait..." % int(options.timeout) )
-        response = self.gdb.write("find 0xc0000000, +0x40000000, \"%s\"" % process,
-                                  raise_error_on_timeout=True, read_response=True,
-                                  timeout_sec=int(options.timeout))
-        # author : m00dy , 15/11/2018
-        # response[0] contains the gdb command line
-        # I remove the first element before looping in response list
-        response.pop(0)
-        addresses = []
-        for m in response:
-            # check if the payload starts with 0x because a response could be an error
-            if m.get('payload') != None and m.get('payload')[:-2].startswith('0x'):
-                #print (" payload is %s "%(m.get('payload')[:-2]))
-                val = int(m.get('payload')[:-2],16)
-                if val%16 == self.options.offset_to_comm%16:
-                    addresses.append(val)
+        addresses = self.find(process)
 
-
+        candidates = []
         for a in addresses:
-            response = self.gdb.write("x/6xw %#x" % (a - 8))
-            magic_cred_ptr = response[1].get('payload').split('\\t')
-            magic_addr = ""
-            if ( magic_cred_ptr[1] !=0 and (magic_cred_ptr[1]) == (magic_cred_ptr[2]) ):
-                magic_addr = a
+            if a%16 == self.options.offset_to_comm%16:
+                candidates.append(a)
+
+        for c in candidates:
+            magic_cred_ptr1 = self.read_mem(c - 8)
+            magic_cred_ptr2 = self.read_mem(c - 4)
+
+            if (magic_cred_ptr1 == magic_cred_ptr2):
+                magic_addr = c
                 return magic_addr - self.options.offset_to_comm
-        return 0
+        return None
 
     '''
     This function returns the cred_struct address of adbd process from a given stager process
@@ -217,11 +228,11 @@ class GDB_stub_controller(object):
         adbd_cred_ptr = ""
         cur = stager_addr
         while True:
-            parent_struct_addr = int(self.gdb.write("x/6xw %#x" % (cur + self.options.offset_to_comm - self.options.offset_to_parent))[1].get('payload').split('\\t')[1],16)
+            parent_struct_addr = self.read_mem(cur + self.options.offset_to_comm - self.options.offset_to_parent)
             print(hex(parent_struct_addr))
-            parent_struct_name = self.gdb.write("x/s %#x" % (parent_struct_addr + self.options.offset_to_comm))[1].get('payload').split('\\t')[1]
+            parent_struct_name = self.read_str(parent_struct_addr + self.options.offset_to_comm)
             if (str(parent_struct_name) == r'\"adbd\"'):
-                adbd_cred_ptr = int(self.gdb.write("x/6xw %#x" % (parent_struct_addr + self.options.offset_to_comm - 4))[1].get('payload').split('\\t')[1],16)
+                adbd_cred_ptr = self.read_mem(parent_struct_addr + self.options.offset_to_comm - 4)
                 break
             cur = parent_struct_addr
         return adbd_cred_ptr
@@ -248,7 +259,7 @@ def single_mode(options):
     logging.info("[+] single_mode(): Replace the process creds with id 0x0, keys 0x0, capabilities 0xffffffff")
     print ("magic is %s " %(hex(magic)))
     print (" magic cred is at %s "%hex(magic+options.offset_to_comm-8) )
-    magic_cred_ptr = gdbsc.read(magic+options.offset_to_comm-8)
+    magic_cred_ptr = gdbsc.read_mem(magic+options.offset_to_comm-8)
     logging.info("[+] single_mode(): magic_cred_ptr is %s "%hex(magic_cred_ptr))
     gdbsc.set_root_ids(magic_cred_ptr)
     gdbsc.set_full_capabilities(magic_cred_ptr)
@@ -285,7 +296,7 @@ chmod 4755 /data/local/tmp/{0}'""".format(options.filename)
 
     gdbsc.disable_selinux()
 
-    magic_cred_ptr = gdbsc.read(magic + options.offset_to_comm - 8)
+    magic_cred_ptr = gdbsc.read_mem(magic + options.offset_to_comm - 8)
     gdbsc.set_root_ids(magic_cred_ptr)
     gdbsc.set_full_capabilities(magic_cred_ptr)
 
@@ -325,7 +336,7 @@ rm rm /data/local/tmp/probe'"""
 
     gdbsc.disable_selinux()
 
-    magic_cred_ptr = gdbsc.read(magic + options.offset_to_comm - 8)
+    magic_cred_ptr = gdbsc.read_mem(magic + options.offset_to_comm - 8)
     gdbsc.set_root_ids(magic_cred_ptr)
     gdbsc.set_full_capabilities(magic_cred_ptr)
 
