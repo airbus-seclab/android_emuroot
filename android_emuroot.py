@@ -200,7 +200,7 @@ class GDB_stub_controller(object):
 
 
         for a in addresses:
-            response = self.gdb.write("x/6xw %#x" % (a - (8%16)))
+            response = self.gdb.write("x/6xw %#x" % (a - 8))
             magic_cred_ptr = response[1].get('payload').split('\\t')
             magic_addr = ""
             if ( magic_cred_ptr[1] !=0 and (magic_cred_ptr[1]) == (magic_cred_ptr[2]) ):
