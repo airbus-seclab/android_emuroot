@@ -140,10 +140,15 @@ class GDB_stub_controller(object):
         self.gdb.write("set *(unsigned int*) (%#x) = %#x" % (addr, val), timeout_sec=self.internal_timeout)
 
     def read_mem(self, addr):
-        r = self.gdb.write("x/xw %#x" % addr, timeout_sec=self.internal_timeout)[1].get('payload').split('\\t')[1].replace("\\n","")
-        logging.info(" [+] gdb.read addr [0x%x]: %s "% (addr, r))
-        r = int(r,16)
-        return r 
+        try:
+            r = self.gdb.write("x/xw %#x" % addr, timeout_sec=self.internal_timeout)[1].get('payload').split('\\t')[1].replace("\\n","")    
+            logging.info(" [+] gdb.read addr [0x%x]: %s "% (addr, r))
+            r = int(r,16)
+            return r
+        except GdbTimeoutError:
+            logging.info("GDB response Timeout !")
+
+
 
     def read_str(self, addr):
         r = self.gdb.write("x/s %#x" % addr, timeout_sec=self.internal_timeout)[1].get('payload').split('\\t')[1]
