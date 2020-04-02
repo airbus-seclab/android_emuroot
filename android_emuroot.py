@@ -160,7 +160,7 @@ class GDB_stub_controller(object):
 
 
     def read_str(self, addr):
-        r = self.gdb.write("x/s %#x" % addr, timeout_sec=self.internal_timeout)[1].get('payload').split('\\t')[1]
+        r = self.gdb.write("x/s %#x" % addr, timeout_sec=self.internal_timeout)[1].get('payload').split('\\t')[1].replace("\\n","")
         logging.info(" [+] gdb.read str [0x%x]: %s " % (addr, r))
         return r
 
