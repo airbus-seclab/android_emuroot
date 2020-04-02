@@ -5,6 +5,8 @@ import logging
 # imports for emuroot
 import pygdbmi
 from pygdbmi.gdbcontroller import GdbController
+from pygdbmi.gdbcontroller import GdbTimeoutError
+from pygdbmi.gdbcontroller import NoGdbProcessError
 from pprint import pprint
 import threading
 import time
@@ -139,15 +141,22 @@ class GDB_stub_controller(object):
         logging.info(" [+] gdb.write addr: %#x value : %#x"%(addr,val))
         self.gdb.write("set *(unsigned int*) (%#x) = %#x" % (addr, val), timeout_sec=self.internal_timeout)
 
-    def read_mem(self, addr):
+    def read_mem(self, addr, rec=0):
         try:
+            logging.info(" [+] gdb.read addr [0x%x]: ... "% (addr))
             r = self.gdb.write("x/xw %#x" % addr, timeout_sec=self.internal_timeout)[1].get('payload').split('\\t')[1].replace("\\n","")    
             logging.info(" [+] gdb.read addr [0x%x]: %s "% (addr, r))
             r = int(r,16)
-            return r
-        except GdbTimeoutError:
-            logging.info("GDB response Timeout !")
 
+            return r
+        except (GdbTimeoutError,TypeError,ValueError,NoGdbProcessError,IndexError,AttributeError):
+            if (rec == 0):
+                logging.debug("Inconsistente GDB response. (GDB timeout or bad format). New try.")
+                self.read_mem(addr, rec=1)
+            else:
+                logging.debug("Inconsistente GDB response. (GDB timeout or bad format). Quit")
+                self.stop()
+                raise Exception("GDB timeout reached. Quit")
 
 
     def read_str(self, addr):
