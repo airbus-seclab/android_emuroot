@@ -26,7 +26,7 @@ def kernel_version():
     client = AdbClient(host="127.0.0.1", port=5037) 
     device = client.device(options.device)       
     if device == None:
-        logging.info("Device name %s invalid. Check \"adb devices\" to get valid ones", options.device)
+        logging.warning("Device name %s invalid. Check \"adb devices\" to get valid ones", options.device)
         raise Exception("Device name invalid. Check \"adb devices\" to get valid ones")
     result = device.shell("uname -r")
     #result = result.encode('ascii','ignore')
@@ -55,7 +55,7 @@ def kernel_version():
         ps_cmd = "ps -A"
         
     else :
-        logging.info("Sorry. Android kernel version %s not supported yet", str(ver))
+        logging.warning("Sorry. Android kernel version %s not supported yet", str(ver))
         raise NotImplementedError("Sorry. Android kernel version not supported yet")
     return ver,offset_to_comm,offset_to_parent,offset_selinux,ps_cmd
 
@@ -66,14 +66,14 @@ def check_process_is_running(process, pscmd, devicename):
     client = AdbClient(host="127.0.0.1", port=5037)
     device = client.device(devicename)
     if device == None:
-        logging.info("Device name %s invalid. Check \"adb devices\" to get valid ones", device)
+        logging.warning("Device name %s invalid. Check \"adb devices\" to get valid ones", device)
         raise Exception("Device name invalid. Check \"adb devices\" to get valid ones")
     ps = device.shell(pscmd)
     if process in ps:
-        logging.info("[+] OK. %s is running" %(process))
+        logging.warning("[+] OK. %s is running" %(process))
     else:
-        logging.info("[+] NOK. It seems like %s is not running..." %(process))
-        logging.info("[+] Android_Emuroot stopped")
+        logging.warning("[+] NOK. It seems like %s is not running..." %(process))
+        logging.warning("[+] Android_Emuroot stopped")
         exit(1)
 
 '''
