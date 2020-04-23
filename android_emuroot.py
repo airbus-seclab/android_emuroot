@@ -32,7 +32,7 @@ def kernel_version():
         raise Exception("Device name invalid. Check \"adb devices\" to get valid ones")
     result = device.shell("uname -r")
     #result = result.encode('ascii','ignore')
-    logging.info(" kernel_version() : result is %s", result)
+    logging.debug(" kernel_version() : %s", result)
     result = result.split(".")
     ver = result[0]+'.'+result[1]
     ver = float(ver)
@@ -129,7 +129,7 @@ class GDB_stub_controller(object):
                 isrunning = 1
                 break
         if isrunning == 0:
-            logging.info("GDB server not reachable. Did you start it?")
+            logging.warning("GDB server not reachable. Did you start it?")
             self.stop()
             raise Exception("GDB server not reachable. Did you start it?")
 
@@ -138,30 +138,30 @@ class GDB_stub_controller(object):
         self.gdb.exit()
 
     def write_mem(self, addr, val):
-        logging.info(" [+] gdb.write addr: %#x value : %#x"%(addr,val))
+        logging.debug(" [+] gdb.write addr: %#x value : %#x"%(addr,val))
         self.gdb.write("set *(unsigned int*) (%#x) = %#x" % (addr, val), timeout_sec=self.internal_timeout)
 
     def read_mem(self, addr, rec=0):
         try:
-            logging.info(" [+] gdb.read addr [0x%x]: ... "% (addr))
+            logging.debug(" [+] gdb.read addr [0x%x]: ... "% (addr))
             r = self.gdb.write("x/xw %#x" % addr, timeout_sec=self.internal_timeout)[1].get('payload').split('\\t')[1].replace("\\n","")    
-            logging.info(" [+] gdb.read addr [0x%x]: %s "% (addr, r))
+            logging.debug(" [+] gdb.read addr [0x%x]: %s "% (addr, r))
             r = int(r,16)
 
             return r
         except (GdbTimeoutError,TypeError,ValueError,NoGdbProcessError,IndexError,AttributeError):
             if (rec == 0):
-                logging.debug("Inconsistente GDB response. (GDB timeout or bad format). New try.")
+                logging.warning("Inconsistente GDB response. (GDB timeout or bad format). New try.")
                 self.read_mem(addr, rec=1)
             else:
-                logging.debug("Inconsistente GDB response. (GDB timeout or bad format). Quit")
+                logging.warning("Inconsistente GDB response. (GDB timeout or bad format). Quit")
                 self.stop()
                 raise Exception("GDB timeout reached. Quit")
 
 
     def read_str(self, addr):
         r = self.gdb.write("x/s %#x" % addr, timeout_sec=self.internal_timeout)[1].get('payload').split('\\t')[1].replace("\\n","")
-        logging.info(" [+] gdb.read str [0x%x]: %s " % (addr, r))
+        logging.debug(" [+] gdb.read str [0x%x]: %s " % (addr, r))
         return r
 
 
@@ -184,7 +184,7 @@ class GDB_stub_controller(object):
     '''
     def disable_selinux(self):
         logging.info("[+] Disable SELinux")
-        logging.info("[+] Offsets are  %s - %s - %s "%( hex(self.options.offset_selinux[0]),hex(self.options.offset_selinux[0]),hex(self.options.offset_selinux[0])))
+        logging.debug("[+] Offsets are  %s - %s - %s "%( hex(self.options.offset_selinux[0]),hex(self.options.offset_selinux[0]),hex(self.options.offset_selinux[0])))
 
         self.write_mem(self.options.offset_selinux[0], 0)
         self.write_mem(self.options.offset_selinux[1], 0)
@@ -267,14 +267,14 @@ def single_mode(options):
     # Get task struct address
     gdbsc = GDB_stub_controller(options)
     magic = gdbsc.get_process_task_struct(options.magic_name)
-    logging.info("[+] singel_mode(): process task struct of magic is %s "%(magic))
+    logging.debug("[+] singel_mode(): process task struct of magic is %s "%(magic))
 
      # Replace the shell creds with id 0x0, keys 0x0, capabilities 0xffffffff
-    logging.info("[+] single_mode(): Replace the process creds with id 0x0, keys 0x0, capabilities 0xffffffff")
-    print ("magic is %s " %(hex(magic)))
-    print (" magic cred is at %s "%hex(magic+options.offset_to_comm-8) )
+    logging.debug("[+] single_mode(): Replace the process creds with id 0x0, keys 0x0, capabilities 0xffffffff")
+    #print ("magic is %s " %(hex(magic)))
+    #print (" magic cred is at %s "%hex(magic+options.offset_to_comm-8) )
     magic_cred_ptr = gdbsc.read_mem(magic+options.offset_to_comm-8)
-    logging.info("[+] single_mode(): magic_cred_ptr is %s "%hex(magic_cred_ptr))
+    logging.debug("[+] single_mode(): magic_cred_ptr is %s "%hex(magic_cred_ptr))
     gdbsc.set_root_ids(magic_cred_ptr)
     gdbsc.set_full_capabilities(magic_cred_ptr)
 
@@ -324,7 +324,7 @@ This function elevates the privileges of adbd process
 '''
 def adbd_mode(options):
     logging.info("adbd mode is chosen")
-    logging.info("[+] Rooting with Android Emuroot via adbd...")
+    logging.debug("[+] Rooting with Android Emuroot via adbd...")
 
     script = """'#!/bin/bash
 cp /system/bin/sh /data/local/tmp/probe
@@ -387,7 +387,7 @@ if __name__ == '__main__':
         parser.error("Too few arguments")
 
     # set logging params
-    loglevel = 50 - (10*options.verbose) if options.verbose > 0 else logging.INFO
+    loglevel = 50 - (10*options.verbose) if options.verbose > 0 else logging.WARNING
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s',datefmt='%Y-%m-%d %H:%M:%S')
 
     # pin down android kernel version
