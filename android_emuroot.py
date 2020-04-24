@@ -361,7 +361,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Usage:")
 
     parser.add_argument("-v", "--version", action="version", version='%(prog)s version is 1.0')
-    parser.add_argument("-V", "--verbose", action="count", default=0, help="increase verbosity")
+    parser.add_argument("-V", "--verbose", action="count", default=0, help="detailed steps")
+    parser.add_argument("-D", "--debug", action="count", default=0, help="for more debug messages")
     parser.add_argument("-t", "--timeout", help="set the GDB timeout value (in seconds)", default=60)
     parser.add_argument("-d", "--device", help="specify the device name (as printed by \"adb device\", example: emulator-5554)", default="emulator-5554")
 
@@ -387,7 +388,13 @@ if __name__ == '__main__':
         parser.error("Too few arguments")
 
     # set logging params
-    loglevel = 50 - (10*options.verbose) if options.verbose > 0 else logging.WARNING
+    # default logging level is WARNING 
+    loglevel = logging.WARNING
+    if options.verbose:
+        loglevel = logging.INFO
+    if options.debug:
+        loglevel = logging.DEBUG
+
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s',datefmt='%Y-%m-%d %H:%M:%S')
 
     # pin down android kernel version
