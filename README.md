@@ -69,7 +69,7 @@ example like this: ```sdkmanager --install "system-images;android-27;google_apis
 Then, create an Android Virtual Device (AVD) accordingly, via the AVD manager GUI or
 with
 [avdmanager](https://developer.android.com/studio/command-line/avdmanager)
-like this: `avdmanager create avd -n my_avd_name -k system-images;android-27;google_apis_playstore;x86"`.
+like this: `avdmanager create avd -n my_avd_name -k "system-images;android-27;google_apis_playstore;x86"`.
 
 
 ### Working environment
