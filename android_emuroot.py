@@ -117,7 +117,7 @@ class GDB_stub_controller(object):
     def __init__(self, options):
         self.options = options
         self.internal_timeout = 1
-        self.verb = True if options.verbose else False
+        self.verb = True if options.debug else False
         logging.info(" [+] Start the GDB controller and attach it to the remote target")
         logging.info(" [+] GDB additional timeout value is %d" % int(options.timeout) )
         self.gdb = GdbController(time_to_check_for_additional_output_sec=int(options.timeout), verbose=self.verb)
@@ -361,7 +361,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Usage:")
 
     parser.add_argument("-v", "--version", action="version", version='%(prog)s version is 1.0')
-    parser.add_argument("-V", "--verbose", action="count", default=0, help="detailed steps")
+    parser.add_argument("-V", "--noverbose", action="count", default=0, help="detailed steps")
     parser.add_argument("-D", "--debug", action="count", default=0, help="for more debug messages")
     parser.add_argument("-t", "--timeout", help="set the GDB timeout value (in seconds)", default=60)
     parser.add_argument("-d", "--device", help="specify the device name (as printed by \"adb device\", example: emulator-5554)", default="emulator-5554")
@@ -388,10 +388,10 @@ if __name__ == '__main__':
         parser.error("Too few arguments")
 
     # set logging params
-    # default logging level is WARNING 
-    loglevel = logging.WARNING
-    if options.verbose:
-        loglevel = logging.INFO
+    # default logging level is INFO
+    loglevel = logging.INFO
+    if options.noverbose:
+        loglevel = logging.WARNING
     if options.debug:
         loglevel = logging.DEBUG
 
