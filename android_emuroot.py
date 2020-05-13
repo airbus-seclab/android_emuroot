@@ -10,7 +10,7 @@ from pygdbmi.gdbcontroller import NoGdbProcessError
 from pprint import pprint
 import threading
 import time
-
+from collections import namedtuple
 
 
 try:
@@ -40,8 +40,10 @@ def kernel_version():
     offset_selinux = [] 
       # case kernel version is <= 3.10
     if ver <= 3.10 :
-        offset_to_comm = 0x288
         offset_to_parent = 0xe0
+        offset_to_tasks = 0x14c
+        offset_to_comm = 0x288
+        init_task_tasks_addr = 0xC092138C
         offset_selinux.append(0xC0A77548)
         offset_selinux.append(0xC0A7754C)
         offset_selinux.append(0xC0A77550)
@@ -49,8 +51,10 @@ def kernel_version():
 
     # case kernel version is > 3.10 et <=3.18
     elif ver > 3.10 and ver <= 3.18 :
-        offset_to_comm = 0x444
         offset_to_parent = 0xe0
+        offset_to_comm = 0x444
+        offset_to_tasks = 0x2c8
+        init_task_tasks_addr = 0xC0AEE208 #WARNING: ok for API 27, not for API 26 #TODO fix it
         offset_selinux.append(0xC0C4F288) 
         offset_selinux.append(0xC0C4F28C)
         offset_selinux.append(0XC0C4F280)
@@ -59,7 +63,7 @@ def kernel_version():
     else :
         logging.warning("Sorry. Android kernel version %s not supported yet", str(ver))
         raise NotImplementedError("Sorry. Android kernel version not supported yet")
-    return ver,offset_to_comm,offset_to_parent,offset_selinux,ps_cmd
+    return ver,offset_to_comm,offset_to_parent,init_task_tasks_addr,offset_to_tasks,offset_selinux,ps_cmd
 
 '''
 This function checks if a given process is running (with  adb shell 'ps' command)
@@ -111,12 +115,12 @@ def stager_clean(devicename):
 
 
 ##################### GDB functions #############################
-
+Task = namedtuple('Task', 'addr comm')
 
 class GDB_stub_controller(object):
     def __init__(self, options):
         self.options = options
-        self.internal_timeout = 1
+        self.internal_timeout = 0.1
         self.verb = True if options.debug else False
         logging.info(" [+] Start the GDB controller and attach it to the remote target")
         logging.info(" [+] GDB additional timeout value is %d" % int(options.timeout) )
@@ -231,6 +235,7 @@ class GDB_stub_controller(object):
 
             if (magic_cred_ptr1 == magic_cred_ptr2):
                 magic_addr = c
+                logging.info(('[+] Found matching task at 0x%x' % (magic_addr - self.options.offset_to_comm)))
                 return magic_addr - self.options.offset_to_comm
         return None
 
@@ -251,6 +256,31 @@ class GDB_stub_controller(object):
             cur = parent_struct_addr
         return adbd_cred_ptr
 
+    def get_process_task_struct_from_init(self, process):
+        logging.info(" [+] Get address aligned whose process name is: [%s]" % process)
+        logging.warning("[+] Requires KSALR is deactivated in your emulator")
+        logging.info("   [+] Get the list of all task_structs. This step may take a while. Please wait...")
+        tasks = []
+        current_task_tasks = options.init_task_tasks_addr
+
+        while True:
+            task_struct_start = current_task_tasks - options.offset_to_tasks
+            comm = self.read_str(task_struct_start + options.offset_to_comm)
+            logging.debug('Task: %s', comm)
+            tasks.append(Task(task_struct_start, comm))
+
+            next_task = self.read_mem(current_task_tasks)
+            if next_task == options.init_task_tasks_addr:
+                break
+            current_task_tasks = next_task
+
+        for task in tasks:
+            if process in task.comm:
+                logging.info('  [+] Found matching task at 0x%x' % (task.addr))
+                return task.addr
+        return None
+
+
 ##################### Emuroot options ###########################
 '''
 This function looks for the task struct and cred structure
@@ -266,7 +296,11 @@ def single_mode(options):
 
     # Get task struct address
     gdbsc = GDB_stub_controller(options)
-    magic = gdbsc.get_process_task_struct(options.magic_name)
+    if options.nokaslr:
+        magic = gdbsc.get_process_task_struct_from_init(options.magic_name)
+    else:
+        magic = gdbsc.get_process_task_struct(options.magic_name)
+    
     logging.debug("[+] singel_mode(): process task struct of magic is %s "%(magic))
 
      # Replace the shell creds with id 0x0, keys 0x0, capabilities 0xffffffff
@@ -288,7 +322,8 @@ This function install a sh with suid root on the file system
 def setuid_mode(options):
     logging.info("[+] Rooting with Android Emuroot via a setuid binary...")
 
-    script = """'#!/bin/bash
+    if (not options.nokaslr):
+        script = """'#!/bin/bash
 cp /system/bin/sh /data/local/tmp/{0}
 while :; do
   sleep 5
@@ -297,25 +332,28 @@ done
 mount -o suid,remount /data
 chmod 4755 /data/local/tmp/{0}'""".format(options.filename)
 
-    thread = threading.Thread(name='adb_stager',target=adb_stager_process, args=(script,options.device))
-    thread.start()
-    time.sleep(5) # to be sure STAGER has been started
+        thread = threading.Thread(name='adb_stager',target=adb_stager_process, args=(script,options.device))
+        thread.start()
+        time.sleep(5) # to be sure STAGER has been started
 
-    check_process_is_running("STAGER", options.ps_cmd, options.device)
-    gdbsc = GDB_stub_controller(options)
-    magic = gdbsc.get_process_task_struct("STAGER")
+        check_process_is_running("STAGER", options.ps_cmd, options.device)
+        gdbsc = GDB_stub_controller(options)
 
-    adbd_cred_ptr = gdbsc.get_adbd_cred_struct(magic)
-    gdbsc.set_full_capabilities(adbd_cred_ptr)
+        magic = gdbsc.get_process_task_struct("STAGER")
+        adbd_cred_ptr = gdbsc.get_adbd_cred_struct(magic)
 
-    gdbsc.disable_selinux()
+        gdbsc.set_full_capabilities(adbd_cred_ptr)
 
-    magic_cred_ptr = gdbsc.read_mem(magic + options.offset_to_comm - 8)
-    gdbsc.set_root_ids(magic_cred_ptr)
-    gdbsc.set_full_capabilities(magic_cred_ptr)
+        gdbsc.disable_selinux()
 
-    gdbsc.stop()
-    stager_clean(options.device)
+        magic_cred_ptr = gdbsc.read_mem(magic + options.offset_to_comm - 8)
+        gdbsc.set_root_ids(magic_cred_ptr)
+        gdbsc.set_full_capabilities(magic_cred_ptr)
+
+        gdbsc.stop()
+        stager_clean(options.device)
+    else:
+        logging.info("Not supported yet.")
 
 
 '''
@@ -326,7 +364,8 @@ def adbd_mode(options):
     logging.info("adbd mode is chosen")
     logging.debug("[+] Rooting with Android Emuroot via adbd...")
 
-    script = """'#!/bin/bash
+    if (not options.nokaslr):
+        script = """'#!/bin/bash
 cp /system/bin/sh /data/local/tmp/probe
 isRoot=0
 while :; do
@@ -336,35 +375,47 @@ done
 sleep 5
 rm rm /data/local/tmp/probe'"""
 
-    thread = threading.Thread(name='adb_stager',target=adb_stager_process, args=(script,options.device))
-    thread.start()
-    time.sleep(5) # to be sure STAGER has been started
+        thread = threading.Thread(name='adb_stager',target=adb_stager_process, args=(script,options.device))
+        thread.start()
+        time.sleep(5) # to be sure STAGER has been started
 
-    check_process_is_running("STAGER", options.ps_cmd, options.device)
-    gdbsc = GDB_stub_controller(options)
-    magic = gdbsc.get_process_task_struct("STAGER")
+        check_process_is_running("STAGER", options.ps_cmd, options.device)
+        gdbsc = GDB_stub_controller(options)
+        magic = gdbsc.get_process_task_struct("STAGER")
+        adbd_cred_ptr = gdbsc.get_adbd_cred_struct(magic)
 
-    adbd_cred_ptr = gdbsc.get_adbd_cred_struct(magic)
-    gdbsc.set_full_capabilities(adbd_cred_ptr)
-    gdbsc.set_root_ids(adbd_cred_ptr, effective = not options.stealth)
+        gdbsc.set_full_capabilities(adbd_cred_ptr)
+        gdbsc.set_root_ids(adbd_cred_ptr, effective = not options.stealth)
 
-    gdbsc.disable_selinux()
+        gdbsc.disable_selinux()
 
-    magic_cred_ptr = gdbsc.read_mem(magic + options.offset_to_comm - 8)
-    gdbsc.set_root_ids(magic_cred_ptr)
-    gdbsc.set_full_capabilities(magic_cred_ptr)
+        magic_cred_ptr = gdbsc.read_mem(magic + options.offset_to_comm - 8)
+        gdbsc.set_root_ids(magic_cred_ptr)
+        gdbsc.set_full_capabilities(magic_cred_ptr)
 
-    gdbsc.stop()
-    stager_clean(options.device)
+        gdbsc.stop()
+        stager_clean(options.device)
+    else:
+        check_process_is_running("adbd", options.ps_cmd, options.device)
+        gdbsc = GDB_stub_controller(options)
+        adbd_ts = gdbsc.get_process_task_struct_from_init("adbd")
+        adbd_cred_ptr = gdbsc.read_mem(adbd_ts+options.offset_to_comm-8)
+
+        gdbsc.set_full_capabilities(adbd_cred_ptr)
+        gdbsc.set_root_ids(adbd_cred_ptr, effective = not options.stealth)
+        gdbsc.disable_selinux()
+        gdbsc.stop()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Usage:")
 
-    parser.add_argument("-v", "--version", action="version", version='%(prog)s version is 1.0')
-    parser.add_argument("-V", "--noverbose", action="count", default=0, help="detailed steps")
-    parser.add_argument("-D", "--debug", action="count", default=0, help="for more debug messages")
-    parser.add_argument("-t", "--timeout", help="set the GDB timeout value (in seconds)", default=60)
     parser.add_argument("-d", "--device", help="specify the device name (as printed by \"adb device\", example: emulator-5554)", default="emulator-5554")
+    parser.add_argument("-t", "--timeout", help="set the GDB timeout value (in seconds)", default=60)
+    parser.add_argument("-k", "--nokaslr", action="count", help="specify kaslr is deactivated in your emulator (to use a faster research method)", default=0)
+    parser.add_argument("-v", "--version", action="version", version='%(prog)s version is 1.0')
+    parser.add_argument("-D", "--debug", action="count", default=0, help="for more debug messages")
+    parser.add_argument("-V", "--noverbose", action="count", default=0, help="detailed steps")
 
     subparsers = parser.add_subparsers(title="modes")
 
@@ -398,7 +449,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s',datefmt='%Y-%m-%d %H:%M:%S')
 
     # pin down android kernel version
-    options.version, options.offset_to_comm, options.offset_to_parent , options.offset_selinux, options.ps_cmd = kernel_version()
+    options.version, options.offset_to_comm, options.offset_to_parent , options.init_task_tasks_addr, options.offset_to_tasks, options.offset_selinux, options.ps_cmd = kernel_version()
 
     # run the selected mode
     options.mode_function(options)
