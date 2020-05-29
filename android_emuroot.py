@@ -222,6 +222,7 @@ class GDB_stub_controller(object):
 
         candidates = []
         for a in addresses:
+
             if a%16 == self.options.offset_to_comm%16:
                 candidates.append(a)
 
@@ -231,6 +232,7 @@ class GDB_stub_controller(object):
 
             if (magic_cred_ptr1 == magic_cred_ptr2):
                 magic_addr = c
+
                 return magic_addr - self.options.offset_to_comm
         return None
 
